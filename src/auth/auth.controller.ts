@@ -1,39 +1,90 @@
-import * as express from "express";
+import express from "express";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+
 import { Login } from "./auth.interface";
-import User from "../user/user.interface";
-import userModel from "../user/user.model";
+import User from "../users/user.interface";
+import userModel from "../users/user.model";
+import DataStoredInToken from "../interfaces/dataStoredInToken";
+import Token from "../interfaces/token.interface";
 
 class AuthController {
-  public loginPath = "/login";
-  public signupPath = "/signup";
+  public path = "";
   public router = express.Router();
+  private user = userModel;
 
   constructor() {
     this.intializeRoutes();
   }
 
   public intializeRoutes() {
-    this.router.post(this.loginPath, this.loginUser);
-    this.router.post(this.signupPath, this.onboardNewUser);
+    this.router.post(`${this.path}/login`, this.loginUser);
+    this.router.post(`${this.path}/signup`, this.onboardNewUser);
+    this.router.post(`${this.path}/logout`, this.loggingOut);
   }
 
-  loginUser = (request: express.Request, response: express.Response) => {
+  private loginUser = async (
+    request: express.Request,
+    response: express.Response
+  ) => {
     const credentials: Login = request.body;
-    response.send(credentials);
+    const user = await this.user.findOne({ email: credentials.email });
+    if (user) {
+      const isPasswordMatching = await bcrypt.compare(
+        credentials.password,
+        user.get("password", null, { getters: false })
+      );
+      if (isPasswordMatching) {
+        const tokenData = this.createToken(user);
+        response.setHeader("Set-Cookie", [this.createCookie(tokenData)]);
+        response.send(user);
+      } else {
+        response.status(400).send("invalid email address or password");
+      }
+    } else {
+      response.status(400).send("invalid email address or password");
+    }
   };
 
-  onboardNewUser = (request: express.Request, response: express.Response) => {
-    const userDetails: User = request.body;
-    const newUser = new userModel(userDetails);
-    newUser
-      .save()
-      .then((createdUser) => {
-        response.status(201).send(createdUser);
-      })
-      .catch((err) => {
-        response.status(400).send(err);
+  private onboardNewUser = async (
+    request: express.Request,
+    response: express.Response
+  ) => {
+    const userData: User = request.body;
+    if (await this.user.findOne({ email: userData.email })) {
+      response.status(400).send("Email alredy exists");
+    } else {
+      const hashedPassword = await bcrypt.hash(userData.password, 10);
+      const user = await this.user.create({
+        ...userData,
+        password: hashedPassword,
       });
+      const tokenData = this.createToken(user);
+      response.setHeader("Set-Cookie", [this.createCookie(tokenData)]);
+      response.send(user);
+    }
   };
+  private loggingOut = (
+    request: express.Request,
+    response: express.Response
+  ) => {
+    response.setHeader("Set-Cookie", ["Authorization=;Max-age=0"]);
+    response.send(200);
+  };
+  private createToken(user: User): Token {
+    const expiresIn = 60 * 60; // an hour
+    const secret = "dadasd asda sda sas dasd as";
+    const dataStoredInToken: DataStoredInToken = {
+      _id: user._id,
+    };
+    return {
+      expiresIn,
+      token: jwt.sign(dataStoredInToken, secret, { expiresIn }),
+    };
+  }
+  private createCookie(tokenData: Token) {
+    return `Authorization=${tokenData.token}; HttpOnly; Max-Age=${tokenData.expiresIn}`;
+  }
 }
 
 export default AuthController;
