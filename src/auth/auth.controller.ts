@@ -80,6 +80,8 @@ class AuthController {
     const secret = "dadasd asda sda sas dasd as";
     const dataStoredInToken: DataStoredInToken = {
       _id: user._id,
+      email: user.email,
+      name: user.name,
     };
     return {
       expiresIn,
