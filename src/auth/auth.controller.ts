@@ -55,13 +55,17 @@ class AuthController {
       response.status(400).send("Email alredy exists");
     } else {
       const hashedPassword = await bcrypt.hash(userData.password, 10);
-      const user = await this.user.create({
-        ...userData,
-        password: hashedPassword,
-      });
-      const tokenData = this.createToken(user);
-      response.setHeader("Set-Cookie", [this.createCookie(tokenData)]);
-      response.send(user);
+      try {
+        const user = await this.user.create({
+          ...userData,
+          password: hashedPassword,
+        });
+        const tokenData = this.createToken(user);
+        response.setHeader("Set-Cookie", [this.createCookie(tokenData)]);
+        response.send(user);
+      } catch (ex) {
+        response.status(400).send(ex.message);
+      }
     }
   };
   private loggingOut = (
@@ -83,7 +87,7 @@ class AuthController {
     };
   }
   private createCookie(tokenData: Token) {
-    return `Authorization=${tokenData.token}; HttpOnly; Max-Age=${tokenData.expiresIn}`;
+    return `Authorization=${tokenData.token}; HttpOnly; Max-Age=${tokenData.expiresIn};`;
   }
 }
 

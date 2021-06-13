@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import Controller from "./interfaces/controller.interface";
 import errorMiddleware from "./middleware/error.middleware";
 import cookieParser from "cookie-parser";
+import cors from "cors";
 
 class App {
   public app: express.Application;
@@ -33,6 +34,12 @@ class App {
       });
   }
   private initializeMiddlewares() {
+    this.app.use(
+      cors({
+        origin: "http://localhost:3000",
+        credentials: true,
+      })
+    );
     this.app.use(express.json());
     this.app.use(morgan("tiny"));
     this.app.use(express.static("public"));
