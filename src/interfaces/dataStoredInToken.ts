@@ -1,4 +1,4 @@
-interface DataStoredInToken {
+export interface DataStoredInToken {
   _id: string;
   email: string;
   name: {
@@ -7,4 +7,6 @@ interface DataStoredInToken {
   };
 }
 
-export default DataStoredInToken;
+// export interface DataStoredInRefreshToken {
+//   _id: string;
+// }

@@ -1,12 +1,16 @@
 import express from "express";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
 
 import { Login } from "./auth.interface";
 import User from "../users/user.interface";
 import userModel from "../users/user.model";
-import DataStoredInToken from "../interfaces/dataStoredInToken";
-import Token from "../interfaces/token.interface";
+import {
+  // createRefreshToken,
+  createToken,
+  // setRefreshTokenCookie,
+  setTokenCookie,
+  // updateTokenFromRefreshToken,
+} from "./auth.services";
 
 class AuthController {
   public path = "";
@@ -19,6 +23,7 @@ class AuthController {
 
   public intializeRoutes() {
     this.router.post(`${this.path}/login`, this.loginUser);
+    // this.router.post(`${this.path}/fetchNewToken`, this.fetchNewToken);
     this.router.post(`${this.path}/signup`, this.onboardNewUser);
     this.router.post(`${this.path}/logout`, this.loggingOut);
   }
@@ -35,8 +40,12 @@ class AuthController {
         user.get("password", null, { getters: false })
       );
       if (isPasswordMatching) {
-        const tokenData = this.createToken(user);
-        response.setHeader("Set-Cookie", [this.createCookie(tokenData)]);
+        const tokenData = createToken(user);
+        // const refreshTokenData = createRefreshToken(user);
+        response.setHeader("Set-Cookie", [
+          setTokenCookie(tokenData),
+          // setRefreshTokenCookie(refreshTokenData),
+        ]);
         response.send(user);
       } else {
         response.status(400).send("invalid email address or password");
@@ -45,6 +54,21 @@ class AuthController {
       response.status(400).send("invalid email address or password");
     }
   };
+
+  // private fetchNewToken = async (
+  //   request: express.Request,
+  //   response: express.Response
+  // ) => {
+  //   const cookies = request.cookies;
+  //   if (cookies && cookies.RefreshToken) {
+  //     let successStatus = await updateTokenFromRefreshToken(
+  //       cookies.RefreshToken,
+  //       response
+  //     );
+  //     response.send({ isSuccess: successStatus });
+  //   }
+  //   response.send({ isSuccess: false });
+  // };
 
   private onboardNewUser = async (
     request: express.Request,
@@ -60,8 +84,8 @@ class AuthController {
           ...userData,
           password: hashedPassword,
         });
-        const tokenData = this.createToken(user);
-        response.setHeader("Set-Cookie", [this.createCookie(tokenData)]);
+        const tokenData = createToken(user);
+        response.setHeader("Set-Cookie", [setTokenCookie(tokenData)]);
         response.send(user);
       } catch (ex) {
         response.status(400).send(ex.message);
@@ -75,22 +99,6 @@ class AuthController {
     response.setHeader("Set-Cookie", ["Authorization=;Max-age=0"]);
     response.send(200);
   };
-  private createToken(user: User): Token {
-    const expiresIn = 60 * 60; // an hour
-    const secret = "dadasd asda sda sas dasd as";
-    const dataStoredInToken: DataStoredInToken = {
-      _id: user._id,
-      email: user.email,
-      name: user.name,
-    };
-    return {
-      expiresIn,
-      token: jwt.sign(dataStoredInToken, secret, { expiresIn }),
-    };
-  }
-  private createCookie(tokenData: Token) {
-    return `Authorization=${tokenData.token}; HttpOnly; Max-Age=${tokenData.expiresIn};`;
-  }
 }
 
 export default AuthController;

@@ -1,8 +1,7 @@
 import { NextFunction, Response } from "express";
-import jwt from "jsonwebtoken";
+import { getUserIdFromToken } from "../auth/auth.services";
 import AuthenticationTokenMissingException from "../exceptions/AuthenticationTokenMissingException";
 import WrongAuthenticationTokenException from "../exceptions/WrongAuthenticationTokenException";
-import DataStoredInToken from "../interfaces/dataStoredInToken";
 import RequestWithUser from "../interfaces/requestWithUser.interface";
 import userModel from "../users/user.model";
 
@@ -12,21 +11,21 @@ async function authMiddleware(
   next: NextFunction
 ) {
   const cookies = request.cookies;
-  if (cookies && cookies.Authorization) {
-    const secret = "dadasd asda sda sas dasd as";
+  if (cookies && cookies.Token) {
+    let token = cookies.Token;
     try {
-      const verificationResponse = jwt.verify(
-        cookies.Authorization,
-        secret
-      ) as DataStoredInToken;
-      const id = verificationResponse._id;
+      const id = getUserIdFromToken(token);
       const user = await userModel.findById(id);
-
       if (user) {
         request.user = user;
         next();
       } else {
-        next(new WrongAuthenticationTokenException());
+        // code for refresh token should come here;
+        if (cookies && cookies.RefreshToken) {
+          // refresh token is available
+        } else {
+          next(new WrongAuthenticationTokenException());
+        }
       }
     } catch (error) {
       next(new WrongAuthenticationTokenException());
